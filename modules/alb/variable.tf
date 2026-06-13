@@ -1,0 +1,24 @@
+variable "env" {
+  description = "環境名"
+  type        = string
+}
+
+variable "name" {
+  description = "ALBの名前プレフィックス"
+  type        = string
+}
+
+variable "vpc_id" {
+  description = "VPCのID"
+  type        = string
+}
+
+variable "public_subnet_ids" {
+  description = "ALBを配置するパブリックサブネットIDのリスト"
+  type        = list(string)
+}
+
+variable "target_instance_ids" {
+  description = "ターゲットグループに登録するEC2インスタンスIDのリスト"
+  type        = list(string)
+}

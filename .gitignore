@@ -1,0 +1,13 @@
+# Terraform state（機密情報含む）
+*.tfstate
+*.tfstate.backup
+
+# Terraformキャッシュ
+.terraform/
+.terraform.lock.hcl
+
+# 機密情報を含む可能性のある変数ファイル
+*.tfvars
+
+# tfvarsのサンプルは上げてOK
+!*.tfvars.example
