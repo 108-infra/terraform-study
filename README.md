@@ -148,3 +148,10 @@ terraform apply
 - CloudTrailとCloudWatchを組み合わせたセキュリティ監視の構築
 - AWS SSOによるアクセスキーレスな認証設計
 - tfstateや機密情報のGit管理外への除外
+
+## 今後の改善案
+
+- **リモートステート管理** → S3 + DynamoDBでtfstateを管理しチーム開発に対応
+- **HTTPS対応** → ACM証明書取得・ALBに443リスナー追加・HTTPリダイレクト
+- **RDS追加** → プライベートサブネットにDBレイヤーを追加した3層構成
+- **CI/CD** → GitHub ActionsでPR時にterraform planを自動実行
