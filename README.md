@@ -52,10 +52,24 @@ graph TD
 
 ---
 
+## CI/CDパイプライン
+
+PRを作成するとGitHub Actionsが自動で以下を実行します。
+
+```
+fmt → tfsec → validate → tflint → plan (dev/prod)
+```
+
+- OIDC認証によりアクセスキー不要でAWSに接続
+- planの結果はPRに自動コメント
+
+---
+
 ## 構成ファイル
 
 ```
 terraform-study/
+├── .github/workflows/       # GitHub Actions CI/CD
 ├── bootstrap/               # リモートステート用S3+DynamoDB作成（初回のみ）
 ├── modules/                 # 再利用可能なモジュール
 │   ├── vpc/                 # VPC・サブネット・ルートテーブル・Flow Logs
@@ -92,15 +106,18 @@ terraform-study/
 - EC2へのパブリックIP割り当てなし → ALB経由のアクセスのみに限定
 - セキュリティグループ → EC2はALBのSGからのHTTPのみ許可
 - CloudTrailによる操作ログ記録 → 全リージョン・全サービス対象
-- ログ改ざん検知 → `enable_log_file_validation = true`
+- ログ改ざん検知 → enable_log_file_validation = true
 - VPC Flow Logs → ネットワークトラフィックを全て記録
 - セキュリティアラート → 以下を検知してメール通知
   - rootユーザーのコンソールログイン
   - IAMユーザー・ポリシーの変更
   - コンソールログイン失敗（閾値超え）
-- tfstateをGit管理外 → `.gitignore`で除外
-- 機密情報をコードに直書きしない → `terraform.tfvars`をGit管理外・`.example`ファイルで管理
+- tfstateをGit管理外 → .gitignoreで除外
+- 機密情報をコードに直書きしない → terraform.tfvarsをGit管理外・.exampleファイルで管理
+- CI用の設定値はci.tfvarsとして管理 → 機密情報を含まない値のみGit管理
+- GitHub ActionsのOIDC認証 → アクセスキーをSecretsに保存せずAWSに接続
 - AWS SSO（IAM Identity Center） → アクセスキーをローカルに置かない設定
+- tfsecによるセキュリティスキャン → PRごとに自動実行
 
 ---
 
@@ -119,6 +136,7 @@ terraform-study/
 - Terraform ~> 1.15
 - AWS Provider ~> 5.0
 - AWS ap-northeast-1（東京リージョン）
+- GitHub Actions
 
 ---
 
@@ -169,6 +187,9 @@ terraform apply
 - tfstateや機密情報のGit管理外への除外
 - VPC Flow Logsによるネットワーク監視
 - ハードコード禁止・tfvarsによる変数管理
+- GitHub ActionsとOIDC認証を使ったCI/CDパイプラインの構築
+- tfsecによる自動セキュリティスキャン
+- ブランチ運用とPRベースの開発フロー
 
 ---
 
@@ -176,5 +197,4 @@ terraform apply
 
 - HTTPS対応 → ACM証明書取得・ALBに443リスナーの追加・HTTPリダイレクト
 - RDS追加 → プライベートサブネットにDBレイヤーを追加した3層構成
-- CI/CD → GitHub ActionsでPR時にterraform planを自動実行
 - default_tags → providerブロックで全リソースに共通タグを自動付与
