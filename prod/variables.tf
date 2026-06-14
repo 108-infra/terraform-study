@@ -1,4 +1,4 @@
-# prod/variables.tf
+﻿# prod/variables.tf
 variable "env" {
   description = "環境名"
   type        = string
@@ -20,7 +20,7 @@ variable "public_subnet_cidrs" {
 }
 
 variable "private_subnet_cidr" {
-  description = "プライベートサブネットのCIDRリスト"
+  description = "プライベートサブネットのCIDR"
   type        = string
 }
 
@@ -32,4 +32,10 @@ variable "azs" {
 variable "project_name" {
   description = "プロジェクト名"
   type        = string
+}
+
+variable "aws_profile" {
+  description = "AWS CLIプロファイル名"
+  type        = string
+  default     = "terraform-study"
 }

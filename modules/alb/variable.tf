@@ -1,4 +1,4 @@
-variable "env" {
+﻿variable "env" {
   description = "環境名"
   type        = string
 }
@@ -21,4 +21,9 @@ variable "public_subnet_ids" {
 variable "target_instance_ids" {
   description = "ターゲットグループに登録するEC2インスタンスIDのリスト"
   type        = list(string)
+}
+
+variable "project_name" {
+  description = "プロジェクト名"
+  type        = string
 }

@@ -1,5 +1,5 @@
-terraform {
-  required_version = "~> 1.15"  # 1.15以上2.0未満を許可
+﻿terraform {
+  required_version = "~> 1.15"
 
   required_providers {
     aws = {
@@ -10,6 +10,6 @@ terraform {
 }
 
 provider "aws" {
-  region = var.region
-  profile = "terraform-study"
+  region  = var.region
+  profile = var.aws_profile
 }

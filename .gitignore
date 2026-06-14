@@ -1,4 +1,4 @@
-# Terraform state（機密情報含む）
+﻿# Terraform state（機密情報含む）
 *.tfstate
 *.tfstate.backup
 

@@ -1,7 +1,7 @@
-# terraform-study
+﻿# terraform-study
 
-AWSインフラをTerraformで構築・管理するための学習リポジトリです。  
-マルチ環境構成・セキュリティ監視・モジュール化を意識した実践的な構成を目指しました。
+AWSインフラをTerraformで構築・管理するための学習リポジトリです。
+モジュール化・セキュリティ監視・環境分離を意識した実践的な構成を目指しました。
 
 ---
 
@@ -13,28 +13,35 @@ graph TD
 
     subgraph VPC["VPC (dev: 10.0.0.0/16 / prod: 10.1.0.0/16)"]
         subgraph Public["Public Subnet (multi-AZ)"]
-            ALB["Application Load Balancer\nHTTP :80 / ヘルスチェック付き"]
+            ALB["Application Load Balancer\nHTTP :80 / ヘルスチェック済み"]
         end
         subgraph Private["Private Subnet"]
             EC2["EC2 (web server)\nALBのSGからのみHTTP許可\nパブリックIP無し"]
         end
         IGW["Internet Gateway"]
         RT["Route Table"]
+        FlowLogs["VPC Flow Logs\n全トラフィック記録\nCloudWatch Logs 30日保持"]
     end
 
     subgraph Monitoring["Security Monitoring (alert環境)"]
         CloudTrail["CloudTrail\n全リージョン対応"]
-        CloudWatch["CloudWatch Logs\nログ保管90日"]
-        CWAlarm["CloudWatch Alarm\n3種アラーム監視"]
+        CloudWatch["CloudWatch Logs\nログ保持90日"]
+        CWAlarm["CloudWatch Alarm\n3種アラート監視"]
         SNS["SNS\nメール通知"]
-        S3["S3\nCloudTrail API要件用\n1日で自動削除"]
-        IAM["IAM Role\n最小権限設計"]
+        S3["S3\nCloudTrail APIログ用\n1日で自動削除"]
+        IAM["IAM Role\n最小権限設定"]
+    end
+
+    subgraph Bootstrap["Bootstrap"]
+        S3State["S3\ntfstate保存\n暗号化・バージョニング済み"]
+        DynamoDB["DynamoDB\nState Lock"]
     end
 
     Internet --> ALB
     ALB --> EC2
     IGW --> ALB
     RT --> IGW
+    VPC --> FlowLogs
 
     CloudTrail --> CloudWatch
     CloudWatch --> CWAlarm
@@ -49,48 +56,51 @@ graph TD
 
 ```
 terraform-study/
-├── modules/                  # 再利用可能なモジュール
-│   ├── vpc/                  # VPC・サブネット・ルートテーブル
-│   ├── ec2/                  # EC2・セキュリティグループ
-│   ├── alb/                  # Application Load Balancer
-│   ├── s3/                   # S3バケット
-│   └── security-monitoring/  # CloudTrail・CloudWatch・SNS
-├── dev/                      # 開発環境
-├── prod/                     # 本番環境
-└── alert/                    # セキュリティ監視環境
+├── bootstrap/               # リモートステート用S3+DynamoDB作成（初回のみ）
+├── modules/                 # 再利用可能なモジュール
+│   ├── vpc/                 # VPC・サブネット・ルートテーブル・Flow Logs
+│   ├── ec2/                 # EC2・セキュリティグループ
+│   ├── alb/                 # Application Load Balancer
+│   ├── s3/                  # S3バケット
+│   └── security-monitoring/ # CloudTrail・CloudWatch・SNS
+├── dev/                     # 開発環境
+├── prod/                    # 本番環境
+└── alert/                   # セキュリティ監視環境
 ```
 
 ---
 
-## 構築したAWSリソース
+## 作成したAWSリソース
 
-| リソース | 概要 |
+| リソース | 特徴 |
 |---|---|
-| VPC | パブリック/プライベートサブネット構成・マルチAZ対応 |
-| EC2 | Webサーバー（ALBからのアクセスのみ許可） |
+| VPC | パブリック/プライベートサブネット・マルチAZ対応 |
+| VPC Flow Logs | 全トラフィック記録・CloudWatch Logs 30日保持 |
+| EC2 | ALBからのアクセスのみ許可・パブリックIP無し |
 | ALB | Application Load Balancer・ヘルスチェック設定済み |
-| S3 | CloudTrail API要件用（1日で自動削除） |
+| S3 | CloudTrail APIログ用・1日で自動削除 |
 | CloudTrail | 全リージョン対応・CloudWatch Logsへのストリーミング |
-| CloudWatch Logs | ログ保管90日 |
-| CloudWatch Alarm | 3種のセキュリティアラーム |
+| CloudWatch Logs | ログ保持90日 |
+| CloudWatch Alarm | 3種のセキュリティアラート |
 | SNS | セキュリティアラートのメール通知 |
-| IAM | 最小権限のロール・ポリシー設計 |
+| IAM | 最小権限のロール・ポリシー設定 |
 
 ---
 
 ## セキュリティ面での工夫
 
-- **EC2へのパブリックIP付与なし** → ALB経由のアクセスのみに限定
-- **セキュリティグループ** → EC2はALBのSGからのHTTPのみ許可
-- **CloudTrailによる操作ログ記録** → 全リージョン・全サービス対象
-- **ログ改ざん検知** → `enable_log_file_validation = true`
-- **セキュリティアラート** → 以下を検知してメール通知
+- EC2へのパブリックIP割り当てなし → ALB経由のアクセスのみに限定
+- セキュリティグループ → EC2はALBのSGからのHTTPのみ許可
+- CloudTrailによる操作ログ記録 → 全リージョン・全サービス対象
+- ログ改ざん検知 → `enable_log_file_validation = true`
+- VPC Flow Logs → ネットワークトラフィックを全て記録
+- セキュリティアラート → 以下を検知してメール通知
   - rootユーザーのコンソールログイン
   - IAMユーザー・ポリシーの変更
-  - コンソールログイン失敗（閾値超過）
-- **tfstateをGit管理外** → `.gitignore`で除外
-- **機密情報をコードに直書きしない** → `terraform.tfvars`をGit管理外・`.example`ファイルで管理
-- **AWS SSO（IAM Identity Center）** → アクセスキーをローカルに置かない設計
+  - コンソールログイン失敗（閾値超え）
+- tfstateをGit管理外 → `.gitignore`で除外
+- 機密情報をコードに直書きしない → `terraform.tfvars`をGit管理外・`.example`ファイルで管理
+- AWS SSO（IAM Identity Center） → アクセスキーをローカルに置かない設定
 
 ---
 
@@ -106,9 +116,9 @@ terraform-study/
 
 ## 使用技術
 
-- **Terraform** ~> 1.15
-- **AWS Provider** ~> 5.0
-- **AWS** ap-northeast-1（東京リージョン）
+- Terraform ~> 1.15
+- AWS Provider ~> 5.0
+- AWS ap-northeast-1（東京リージョン）
 
 ---
 
@@ -117,9 +127,18 @@ terraform-study/
 ### 前提条件
 
 - Terraform インストール済み
-- AWS CLIインストール・プロファイル設定済み（SSO推奨）
+- AWS CLIインストール・プロファイル設定済み（SSO認証）
 
-### 実行手順
+### 初回セットアップ（リモートステート）
+
+```bash
+cd bootstrap
+terraform init
+terraform apply
+# 出力されたバケット名を dev/backend.tfvars と prod/backend.tfvars に記載
+```
+
+### 通常の使い方
 
 ```bash
 # 例: dev環境
@@ -140,18 +159,22 @@ terraform apply
 
 ---
 
-## 学んだこと・意識したこと
+## 学んだこと・工夫したこと
 
 - モジュール化による再利用性の向上
 - dev/prod環境の分離とCIDR設計
-- セキュリティグループの最小権限設計
+- セキュリティグループの最小権限設定
 - CloudTrailとCloudWatchを組み合わせたセキュリティ監視の構築
-- AWS SSOによるアクセスキーレスな認証設計
+- AWS SSOによるアクセスキーレスな認証設定
 - tfstateや機密情報のGit管理外への除外
+- VPC Flow Logsによるネットワーク監視
+- ハードコード禁止・tfvarsによる変数管理
+
+---
 
 ## 今後の改善案
 
-- **リモートステート管理** → S3 + DynamoDBでtfstateを管理しチーム開発に対応
-- **HTTPS対応** → ACM証明書取得・ALBに443リスナー追加・HTTPリダイレクト
-- **RDS追加** → プライベートサブネットにDBレイヤーを追加した3層構成
-- **CI/CD** → GitHub ActionsでPR時にterraform planを自動実行
+- HTTPS対応 → ACM証明書取得・ALBに443リスナーの追加・HTTPリダイレクト
+- RDS追加 → プライベートサブネットにDBレイヤーを追加した3層構成
+- CI/CD → GitHub ActionsでPR時にterraform planを自動実行
+- default_tags → providerブロックで全リソースに共通タグを自動付与

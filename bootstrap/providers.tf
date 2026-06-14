@@ -7,9 +7,11 @@
       version = "~> 5.0"
     }
   }
+
+  backend "local" {}
 }
 
 provider "aws" {
-  region  = var.region
+  region  = var.aws_region
   profile = var.aws_profile
 }

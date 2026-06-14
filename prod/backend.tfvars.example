@@ -1,0 +1,4 @@
+# bootstrap/ を apply した後、以下をコピーして backend.tfvars を作成する
+# cp backend.tfvars.example backend.tfvars
+
+bucket = "terraform-study-tfstate-<bootstrap output の値>"
