@@ -9,5 +9,6 @@
 # 機密情報を含む可能性のある変数ファイル
 *.tfvars
 
-# tfvarsのサンプルは上げてOK
+# tfvarsのサンプルとCI用設定値はGit管理OK
 !*.tfvars.example
+!ci.tfvars
