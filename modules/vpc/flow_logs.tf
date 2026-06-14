@@ -1,4 +1,4 @@
-﻿################################################################################
+################################################################################
 # VPC Flow Logs
 # ネットワークトラフィックを CloudWatch Logs に記録する
 ################################################################################
@@ -41,8 +41,8 @@ resource "aws_iam_role_policy" "vpc_flow_log" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
-        Action   = [
+        Effect = "Allow"
+        Action = [
           "logs:CreateLogStream",
           "logs:PutLogEvents",
           "logs:DescribeLogGroups",
