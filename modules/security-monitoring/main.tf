@@ -18,9 +18,9 @@
 resource "aws_cloudtrail" "main" {
   name                          = "${var.prefix}-trail"
   s3_bucket_name                = aws_s3_bucket.cloudtrail.id
-  include_global_service_events = true  # IAM等グローバルサービスを含める
-  is_multi_region_trail         = true  # 全リージョンのイベントを収集
-  enable_log_file_validation    = true 
+  include_global_service_events = true # IAM等グローバルサービスを含める
+  is_multi_region_trail         = true # 全リージョンのイベントを収集
+  enable_log_file_validation    = true
   cloud_watch_logs_group_arn    = "${aws_cloudwatch_log_group.cloudtrail.arn}:*"
   cloud_watch_logs_role_arn     = aws_iam_role.cloudtrail_cw.arn
 

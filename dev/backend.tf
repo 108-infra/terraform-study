@@ -1,4 +1,4 @@
-﻿# Remote State Backend (dev)
+# Remote State Backend (dev)
 # 本番運用時はコメントアウトを解除してbootstrapを先にapplyする
 #
 # terraform {

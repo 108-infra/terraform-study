@@ -1,4 +1,4 @@
-﻿terraform {
+terraform {
   required_version = "~> 1.15"
 
   required_providers {
@@ -11,5 +11,5 @@
 
 provider "aws" {
   region  = var.region
-  profile = var.aws_profile
+  profile = var.aws_profile != "" ? var.aws_profile : null
 }
