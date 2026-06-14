@@ -1,4 +1,4 @@
-﻿# Remote State Backend (prod)
+# Remote State Backend (prod)
 # 本番運用時はコメントアウトを解除してbootstrapを先にapplyする
 #
 # terraform {
