@@ -118,6 +118,7 @@ terraform-study/
 - GitHub ActionsのOIDC認証 → アクセスキーをSecretsに保存せずAWSに接続
 - AWS SSO（IAM Identity Center） → アクセスキーをローカルに置かない設定
 - tfsecによるセキュリティスキャン → PRごとに自動実行
+- Branch protection rules → masterへの直接pushを禁止・CI必須
 
 ---
 
@@ -190,6 +191,7 @@ terraform apply
 - GitHub ActionsとOIDC認証を使ったCI/CDパイプラインの構築
 - tfsecによる自動セキュリティスキャン
 - ブランチ運用とPRベースの開発フロー
+- Branch protection rulesによるmasterブランチの保護
 
 ---
 
