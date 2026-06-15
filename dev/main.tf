@@ -26,3 +26,12 @@ module "ec2" {
   alb_security_group_id = module.alb.security_group_id
   project_name          = var.project_name
 }
+
+module "ecr" {
+  source          = "../modules/ecr"
+  repository_name = "${var.project_name}-${var.env}"
+  tags = {
+    Project = var.project_name
+    Env     = var.env
+  }
+}
