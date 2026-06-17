@@ -1,4 +1,4 @@
-# terraform-study
+﻿# terraform-study
 
 AWSインフラをTerraformで構築・管理するための学習リポジトリです。
 EC2構成とECS(Fargate)構成の両方を実装し、モジュール化・セキュリティ監視・環境分離を意識した実践的な構成を目指しました。
@@ -159,6 +159,7 @@ terraform-study/
 - AWS SSO（IAM Identity Center） → アクセスキーをローカルに置かない設定
 - tfsecによるセキュリティスキャン → PRごとに自動実行
 - Branch protection rules → masterへの直接pushを禁止・CI必須
+- ECS Exec → Fargate環境でのデバッグ用接続（SSM経由、SSHポート不要）
 
 ---
 
@@ -254,6 +255,7 @@ docker push <ECRリポジトリURL>:latest
 - ECR/ECS(Fargate)によるサーバーレスコンテナ実行環境の構築
 - EC2構成とECS構成、2つのアーキテクチャパターンの実装と比較
 - GitHub Actionsのmatrix戦略による複数環境CIの効率化
+- ECS Execによるサーバーレス環境でのデバッグ手法
 
 ---
 
