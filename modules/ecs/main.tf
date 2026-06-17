@@ -50,6 +50,49 @@ resource "aws_iam_role_policy_attachment" "execution" {
 }
 
 #--------------------------------------------------------------
+# IAMロール（タスク用：ECS Execに必要）
+#--------------------------------------------------------------
+resource "aws_iam_role" "task" {
+  name = "${var.project_name}-${var.env}-ecs-task-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
+resource "aws_iam_role_policy" "ecs_exec" {
+  name = "${var.project_name}-${var.env}-ecs-exec-policy"
+  role = aws_iam_role.task.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ssmmessages:CreateControlChannel",
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:OpenDataChannel"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+#--------------------------------------------------------------
 # セキュリティグループ（ECSタスク用：ALBからのみ許可）
 #--------------------------------------------------------------
 resource "aws_security_group" "ecs_task" {
@@ -88,6 +131,7 @@ resource "aws_ecs_task_definition" "this" {
   cpu                      = var.task_cpu
   memory                   = var.task_memory
   execution_role_arn       = aws_iam_role.execution.arn
+  task_role_arn            = aws_iam_role.task.arn
 
   container_definitions = jsonencode([
     {
@@ -118,11 +162,12 @@ resource "aws_ecs_task_definition" "this" {
 # ECSサービス
 #--------------------------------------------------------------
 resource "aws_ecs_service" "this" {
-  name            = "${var.project_name}-${var.env}"
-  cluster         = aws_ecs_cluster.this.id
-  task_definition = aws_ecs_task_definition.this.arn
-  desired_count   = var.desired_count
-  launch_type     = "FARGATE"
+  name                   = "${var.project_name}-${var.env}"
+  cluster                = aws_ecs_cluster.this.id
+  task_definition        = aws_ecs_task_definition.this.arn
+  desired_count          = var.desired_count
+  launch_type            = "FARGATE"
+  enable_execute_command = true
 
   network_configuration {
     subnets          = [var.subnet_id]
