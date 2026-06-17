@@ -1,40 +1,37 @@
-﻿# terraform-study
+# terraform-study
 
 AWSインフラをTerraformで構築・管理するための学習リポジトリです。
-モジュール化・セキュリティ監視・環境分離を意識した実践的な構成を目指しました。
+EC2構成とECS(Fargate)構成の両方を実装し、モジュール化・セキュリティ監視・環境分離を意識した実践的な構成を目指しました。
 
 ---
 
-## AWS構成図
+## 構成パターン
+
+このリポジトリでは2つのアーキテクチャパターンを比較できる構成にしています。
+
+| パターン | ディレクトリ | 特徴 |
+|---|---|---|
+| EC2構成 | ec2-dev / ec2-prod | EC2 + ALB。SSM Session Managerでアクセス |
+| ECS構成 | ecs-dev / ecs-prod | ECS(Fargate) + ALB。サーバーレスなコンテナ実行 |
+
+---
+
+## AWS構成図（EC2パターン）
 
 ```mermaid
 graph TD
     Internet["🌐 Internet"]
 
-    subgraph VPC["VPC (dev: 10.0.0.0/16 / prod: 10.1.0.0/16)"]
+    subgraph VPC["VPC (ec2-dev: 10.0.0.0/16 / ec2-prod: 10.1.0.0/16)"]
         subgraph Public["Public Subnet (multi-AZ)"]
             ALB["Application Load Balancer\nHTTP :80 / ヘルスチェック済み"]
         end
         subgraph Private["Private Subnet"]
-            EC2["EC2 (web server)\nALBのSGからのみHTTP許可\nパブリックIP無し"]
+            EC2["EC2 (web server)\nALBのSGからのみHTTP許可\nパブリックIP無し\nSSM Session Manager対応"]
         end
         IGW["Internet Gateway"]
         RT["Route Table"]
-        FlowLogs["VPC Flow Logs\n全トラフィック記録\nCloudWatch Logs 30日保持"]
-    end
-
-    subgraph Monitoring["Security Monitoring (alert環境)"]
-        CloudTrail["CloudTrail\n全リージョン対応"]
-        CloudWatch["CloudWatch Logs\nログ保持90日"]
-        CWAlarm["CloudWatch Alarm\n3種アラート監視"]
-        SNS["SNS\nメール通知"]
-        S3["S3\nCloudTrail APIログ用\n1日で自動削除"]
-        IAM["IAM Role\n最小権限設定"]
-    end
-
-    subgraph Bootstrap["Bootstrap"]
-        S3State["S3\ntfstate保存\n暗号化・バージョニング済み"]
-        DynamoDB["DynamoDB\nState Lock"]
+        FlowLogs["VPC Flow Logs\n全トラフィック記録"]
     end
 
     Internet --> ALB
@@ -42,12 +39,47 @@ graph TD
     IGW --> ALB
     RT --> IGW
     VPC --> FlowLogs
+```
+
+## AWS構成図（ECSパターン）
+
+```mermaid
+graph TD
+    Internet["🌐 Internet"]
+
+    subgraph VPC["VPC (ecs-dev: 10.2.0.0/16 / ecs-prod: 10.3.0.0/16)"]
+        subgraph Public["Public Subnet"]
+            ALB["Application Load Balancer\nターゲットタイプ: ip"]
+        end
+        subgraph Private["Private Subnet"]
+            ECS["ECS Service (Fargate)\nALBのSGからのみHTTP許可\nパブリックIP無し"]
+        end
+        IGW["Internet Gateway"]
+    end
+
+    ECR["ECR\nコンテナイメージ保管"]
+    CW["CloudWatch Logs\nコンテナログ"]
+
+    Internet --> ALB
+    ALB --> ECS
+    ECR --> ECS
+    ECS --> CW
+```
+
+## セキュリティ監視（alert環境）
+
+```mermaid
+graph TD
+    CloudTrail["CloudTrail\n全リージョン対応"]
+    CloudWatch["CloudWatch Logs\nログ保持90日"]
+    CWAlarm["CloudWatch Alarm\n3種アラート監視"]
+    SNS["SNS\nメール通知"]
+    S3["S3\nCloudTrail APIログ用"]
 
     CloudTrail --> CloudWatch
     CloudWatch --> CWAlarm
     CWAlarm --> SNS
     CloudTrail --> S3
-    IAM --> CloudTrail
 ```
 
 ---
@@ -57,10 +89,11 @@ graph TD
 PRを作成するとGitHub Actionsが自動で以下を実行します。
 
 ```
-fmt → tfsec → validate → tflint → plan (dev/prod)
+fmt → tfsec → validate → tflint → plan (ec2-dev / ec2-prod / matrix戦略)
 ```
 
 - OIDC認証によりアクセスキー不要でAWSに接続
+- matrix戦略で複数環境のplanを並列実行
 - planの結果はPRに自動コメント
 
 ---
@@ -70,16 +103,21 @@ fmt → tfsec → validate → tflint → plan (dev/prod)
 ```
 terraform-study/
 ├── .github/workflows/       # GitHub Actions CI/CD
-├── bootstrap/               # リモートステート用S3+DynamoDB作成（初回のみ）
-├── modules/                 # 再利用可能なモジュール
-│   ├── vpc/                 # VPC・サブネット・ルートテーブル・Flow Logs
-│   ├── ec2/                 # EC2・セキュリティグループ
-│   ├── alb/                 # Application Load Balancer
-│   ├── s3/                  # S3バケット
-│   └── security-monitoring/ # CloudTrail・CloudWatch・SNS
-├── dev/                     # 開発環境
-├── prod/                    # 本番環境
-└── alert/                   # セキュリティ監視環境
+├── bootstrap/                # リモートステート用S3+DynamoDB作成（初回のみ）
+├── modules/                  # 再利用可能なモジュール
+│   ├── vpc/                  # VPC・サブネット・ルートテーブル・Flow Logs
+│   ├── ec2/                  # EC2・セキュリティグループ・SSM用IAMロール
+│   ├── alb/                  # ALB（EC2用、ターゲットタイプ: instance）
+│   ├── alb-ecs/               # ALB（ECS用、ターゲットタイプ: ip）
+│   ├── ecs/                   # ECSクラスタ・タスク定義・サービス（Fargate）
+│   ├── ecr/                   # コンテナイメージリポジトリ
+│   ├── s3/                    # S3バケット
+│   └── security-monitoring/   # CloudTrail・CloudWatch・SNS
+├── ec2-dev/                  # EC2構成・開発環境
+├── ec2-prod/                 # EC2構成・本番環境
+├── ecs-dev/                  # ECS構成・開発環境
+├── ecs-prod/                 # ECS構成・本番環境
+└── alert/                     # セキュリティ監視環境
 ```
 
 ---
@@ -90,29 +128,30 @@ terraform-study/
 |---|---|
 | VPC | パブリック/プライベートサブネット・マルチAZ対応 |
 | VPC Flow Logs | 全トラフィック記録・CloudWatch Logs 30日保持 |
-| EC2 | ALBからのアクセスのみ許可・パブリックIP無し |
-| ALB | Application Load Balancer・ヘルスチェック設定済み |
+| EC2 | ALBからのアクセスのみ許可・パブリックIP無し・SSM対応 |
+| ECS (Fargate) | サーバーレスなコンテナ実行環境 |
+| ECR | コンテナイメージ保管・ライフサイクルポリシーで自動削除 |
+| ALB (EC2用) | ターゲットタイプ instance |
+| ALB (ECS用) | ターゲットタイプ ip |
 | S3 | CloudTrail APIログ用・1日で自動削除 |
 | CloudTrail | 全リージョン対応・CloudWatch Logsへのストリーミング |
 | CloudWatch Logs | ログ保持90日 |
 | CloudWatch Alarm | 3種のセキュリティアラート |
 | SNS | セキュリティアラートのメール通知 |
 | IAM | 最小権限のロール・ポリシー設定 |
-| IAM Role (EC2) | SSM用ロール・AmazonSSMManagedInstanceCoreポリシーをアタッチ |
 
 ---
 
 ## セキュリティ面での工夫
 
 - EC2へのパブリックIP割り当てなし → ALB経由のアクセスのみに限定
-- セキュリティグループ → EC2はALBのSGからのHTTPのみ許可
+- ECSタスクへのパブリックIP割り当てなし → ALB経由のアクセスのみに限定
+- セキュリティグループ → ALBのSGからのHTTPのみ許可
+- SSM Session Manager → SSHポート不要・セキュリティグループに穴を開けない
 - CloudTrailによる操作ログ記録 → 全リージョン・全サービス対象
 - ログ改ざん検知 → enable_log_file_validation = true
 - VPC Flow Logs → ネットワークトラフィックを全て記録
-- セキュリティアラート → 以下を検知してメール通知
-  - rootユーザーのコンソールログイン
-  - IAMユーザー・ポリシーの変更
-  - コンソールログイン失敗（閾値超え）
+- セキュリティアラート → root操作・IAM変更・ログイン失敗を検知してメール通知
 - tfstateをGit管理外 → .gitignoreで除外
 - 機密情報をコードに直書きしない → terraform.tfvarsをGit管理外・.exampleファイルで管理
 - CI用の設定値はci.tfvarsとして管理 → 機密情報を含まない値のみGit管理
@@ -120,16 +159,17 @@ terraform-study/
 - AWS SSO（IAM Identity Center） → アクセスキーをローカルに置かない設定
 - tfsecによるセキュリティスキャン → PRごとに自動実行
 - Branch protection rules → masterへの直接pushを禁止・CI必須
-- SSM Session Manager → SSHポート不要・セキュリティグループに穴を開けない
 
 ---
 
 ## 環境構成
 
-| 環境 | リージョン | VPC CIDR | 用途 |
+| 環境 | リージョン | VPC CIDR | アーキテクチャ |
 |---|---|---|---|
-| dev | ap-northeast-1 | 10.0.0.0/16 | 開発環境 |
-| prod | ap-northeast-1 | 10.1.0.0/16 | 本番環境 |
+| ec2-dev | ap-northeast-1 | 10.0.0.0/16 | EC2 + ALB |
+| ec2-prod | ap-northeast-1 | 10.1.0.0/16 | EC2 + ALB |
+| ecs-dev | ap-northeast-1 | 10.2.0.0/16 | ECS(Fargate) + ALB |
+| ecs-prod | ap-northeast-1 | 10.3.0.0/16 | ECS(Fargate) + ALB |
 | alert | ap-northeast-1 | - | セキュリティ監視 |
 
 ---
@@ -140,6 +180,7 @@ terraform-study/
 - AWS Provider ~> 5.0
 - AWS ap-northeast-1（東京リージョン）
 - GitHub Actions
+- Docker / Amazon ECR / Amazon ECS (Fargate)
 
 ---
 
@@ -156,14 +197,14 @@ terraform-study/
 cd bootstrap
 terraform init
 terraform apply
-# 出力されたバケット名を dev/backend.tfvars と prod/backend.tfvars に記載
+# 出力されたバケット名を各環境のbackend.tfvarsに記載
 ```
 
 ### 通常の使い方
 
 ```bash
-# 例: dev環境
-cd dev
+# 例: ec2-dev環境
+cd ec2-dev
 
 # tfvarsのサンプルをコピーして編集
 cp terraform.tfvars.example terraform.tfvars
@@ -176,6 +217,20 @@ terraform plan
 
 # 適用
 terraform apply
+```
+
+### ECS環境でコンテナイメージを使う場合
+
+```bash
+# ECRにログイン
+aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin <ECRリポジトリURL>
+
+# イメージをビルド・タグ付け・push
+docker build -t terraform-study-ecs-dev .
+docker tag terraform-study-ecs-dev:latest <ECRリポジトリURL>:latest
+docker push <ECRリポジトリURL>:latest
+
+# ecs-dev/main.tf の container_image を ECRのURLに変更してapply
 ```
 
 ---
@@ -195,6 +250,17 @@ terraform apply
 - ブランチ運用とPRベースの開発フロー
 - Branch protection rulesによるmasterブランチの保護
 - SSM Session Managerによるポートレスなサーバーアクセス
+- Dockerによるコンテナイメージの作成
+- ECR/ECS(Fargate)によるサーバーレスコンテナ実行環境の構築
+- EC2構成とECS構成、2つのアーキテクチャパターンの実装と比較
+- GitHub Actionsのmatrix戦略による複数環境CIの効率化
+
+---
+
+## 関連リポジトリ
+
+- [docker-study](https://github.com/108-infra/docker-study) - Docker基礎学習
+- [ansible-study](https://github.com/108-infra/ansible-study) - Ansibleによる構成管理
 
 ---
 
@@ -203,3 +269,5 @@ terraform apply
 - HTTPS対応 → ACM証明書取得・ALBに443リスナーの追加・HTTPリダイレクト
 - RDS追加 → プライベートサブネットにDBレイヤーを追加した3層構成
 - default_tags → providerブロックで全リソースに共通タグを自動付与
+- GitHub ActionsでDockerイメージのビルド・ECRへのpushを自動化
+- ECSのCI/CDパイプライン構築（イメージpush → ECSサービス自動更新）
