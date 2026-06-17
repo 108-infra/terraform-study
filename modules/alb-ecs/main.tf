@@ -1,4 +1,4 @@
-﻿resource "aws_security_group" "alb" {
+resource "aws_security_group" "alb" {
   name   = "alb-sg-${var.env}"
   vpc_id = var.vpc_id
 

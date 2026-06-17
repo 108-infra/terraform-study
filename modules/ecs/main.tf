@@ -1,4 +1,4 @@
-﻿#--------------------------------------------------------------
+#--------------------------------------------------------------
 # ECSクラスタ
 #--------------------------------------------------------------
 resource "aws_ecs_cluster" "this" {
@@ -132,8 +132,8 @@ resource "aws_ecs_service" "this" {
 
   load_balancer {
     target_group_arn = var.target_group_arn
-    container_name    = "${var.project_name}-${var.env}"
-    container_port    = 80
+    container_name   = "${var.project_name}-${var.env}"
+    container_port   = 80
   }
 
   tags = local.common_tags

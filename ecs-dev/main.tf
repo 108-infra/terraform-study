@@ -1,4 +1,4 @@
-﻿module "vpc" {
+module "vpc" {
   source              = "../modules/vpc"
   env                 = var.env
   vpc_cidr            = var.vpc_cidr
@@ -18,15 +18,15 @@ module "alb_ecs" {
 }
 
 module "ecs" {
-  source                 = "../modules/ecs"
-  env                    = var.env
-  project_name           = var.project_name
-  vpc_id                 = module.vpc.vpc_id
-  subnet_id              = module.vpc.subnet_id
-  alb_security_group_id  = module.alb_ecs.security_group_id
-  target_group_arn       = module.alb_ecs.target_group_arn
-  container_image        = "nginx:latest"
-  region                 = var.region
+  source                = "../modules/ecs"
+  env                   = var.env
+  project_name          = var.project_name
+  vpc_id                = module.vpc.vpc_id
+  subnet_id             = module.vpc.subnet_id
+  alb_security_group_id = module.alb_ecs.security_group_id
+  target_group_arn      = module.alb_ecs.target_group_arn
+  container_image       = "nginx:latest"
+  region                = var.region
 }
 
 module "ecr" {
