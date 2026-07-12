@@ -1,11 +1,12 @@
 module "vpc" {
-  source              = "../modules/vpc"
-  env                 = var.env
-  vpc_cidr            = var.vpc_cidr
-  public_subnet_cidrs = var.public_subnet_cidrs
-  azs                 = var.azs
-  private_subnet_cidr = var.private_subnet_cidr
-  project_name        = var.project_name
+  source               = "../modules/vpc"
+  env                  = var.env
+  vpc_cidr             = var.vpc_cidr
+  public_subnet_cidrs  = var.public_subnet_cidrs
+  azs                  = var.azs
+  private_subnet_cidr  = var.private_subnet_cidr
+  project_name         = var.project_name
+  enable_ecs_endpoints = true
 }
 
 module "alb_ecs" {
@@ -22,7 +23,7 @@ module "ecs" {
   env                   = var.env
   project_name          = var.project_name
   vpc_id                = module.vpc.vpc_id
-  subnet_id             = module.vpc.subnet_id
+  subnet_id             = module.vpc.private_subnet_id
   alb_security_group_id = module.alb_ecs.security_group_id
   target_group_arn      = module.alb_ecs.target_group_arn
   container_image       = "nginx:latest"

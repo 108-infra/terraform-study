@@ -29,3 +29,15 @@ variable "project_name" {
   description = "プロジェクト名"
   type        = string
 }
+
+variable "enable_ssm_endpoints" {
+  description = "EC2をSSM(Session Manager)で管理するためのVPCエンドポイント(ssm/ssmmessages/ec2messages)を作成するか"
+  type        = bool
+  default     = false
+}
+
+variable "enable_ecs_endpoints" {
+  description = "ECS FargateがNAT無しでECR pull/CloudWatch Logs/ECS Execを行うためのVPCエンドポイント(ecr.api/ecr.dkr/logs/s3/ssmmessages)を作成するか"
+  type        = bool
+  default     = false
+}
