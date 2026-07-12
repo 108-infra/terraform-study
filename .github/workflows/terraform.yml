@@ -4,14 +4,6 @@ on:
   pull_request:
     branches:
       - master
-    paths:
-      - "alert/**"
-      - "ec2-dev/**"
-      - "ec2-prod/**"
-      - "ecs-dev/**"
-      - "ecs-prod/**"
-      - "modules/**"
-      - ".github/workflows/terraform.yml"
   workflow_dispatch: {}
 
 permissions:
