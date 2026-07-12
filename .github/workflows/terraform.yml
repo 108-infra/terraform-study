@@ -5,8 +5,11 @@ on:
     branches:
       - master
     paths:
+      - "alert/**"
       - "ec2-dev/**"
       - "ec2-prod/**"
+      - "ecs-dev/**"
+      - "ecs-prod/**"
       - "modules/**"
       - ".github/workflows/terraform.yml"
 
@@ -56,7 +59,7 @@ jobs:
     needs: tfsec
     strategy:
       matrix:
-        environment: [ec2-dev, ec2-prod]
+        environment: [alert, ec2-dev, ec2-prod, ecs-dev, ecs-prod]
     defaults:
       run:
         working-directory: ${{ matrix.environment }}

@@ -89,7 +89,7 @@ graph TD
 PRを作成するとGitHub Actionsが自動で以下を実行します。
 
 ```
-fmt → tfsec → validate → tflint → plan (ec2-dev / ec2-prod / matrix戦略)
+fmt → tfsec → validate → tflint → plan (alert / ec2-dev / ec2-prod / ecs-dev / ecs-prod / matrix戦略)
 ```
 
 - OIDC認証によりアクセスキー不要でAWSに接続
