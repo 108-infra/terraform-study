@@ -28,6 +28,7 @@ graph TD
         end
         subgraph Private["Private Subnet"]
             EC2["EC2 (web server)\nALBのSGからのみHTTP許可\nパブリックIP無し\nSSM Session Manager対応"]
+            VPCE["VPC Endpoints\nssm / ssmmessages / ec2messages\nNAT Gateway不要でSSM通信"]
         end
         IGW["Internet Gateway"]
         RT["Route Table"]
@@ -36,6 +37,7 @@ graph TD
 
     Internet --> ALB
     ALB --> EC2
+    EC2 --> VPCE
     IGW --> ALB
     RT --> IGW
     VPC --> FlowLogs
@@ -53,6 +55,7 @@ graph TD
         end
         subgraph Private["Private Subnet"]
             ECS["ECS Service (Fargate)\nALBのSGからのみHTTP許可\nパブリックIP無し"]
+            VPCE["VPC Endpoints\necr.api / ecr.dkr / logs / s3 / ssmmessages\nNAT Gateway不要でpull・ログ送信"]
         end
         IGW["Internet Gateway"]
     end
@@ -62,7 +65,8 @@ graph TD
 
     Internet --> ALB
     ALB --> ECS
-    ECR --> ECS
+    ECS --> VPCE
+    VPCE --> ECR
     ECS --> CW
 ```
 
@@ -128,12 +132,13 @@ terraform-study/
 |---|---|
 | VPC | パブリック/プライベートサブネット・マルチAZ対応 |
 | VPC Flow Logs | 全トラフィック記録・CloudWatch Logs 30日保持 |
-| EC2 | ALBからのアクセスのみ許可・パブリックIP無し・SSM対応 |
+| VPC Endpoints | NAT Gateway不要でECR pull・CloudWatch Logs送信・SSM通信をprivate subnetから実行 |
+| EC2 | ALBからのアクセスのみ許可・パブリックIP無し・SSM対応・IMDSv2強制・EBS暗号化 |
 | ECS (Fargate) | サーバーレスなコンテナ実行環境 |
 | ECR | コンテナイメージ保管・ライフサイクルポリシーで自動削除 |
-| ALB (EC2用) | ターゲットタイプ instance |
-| ALB (ECS用) | ターゲットタイプ ip |
-| S3 | CloudTrail APIログ用・1日で自動削除 |
+| ALB (EC2用) | ターゲットタイプ instance・アクセスログをS3に記録 |
+| ALB (ECS用) | ターゲットタイプ ip・アクセスログをS3に記録 |
+| S3 | CloudTrail APIログ用（1日で自動削除）・ALBアクセスログ用（90日で自動削除） |
 | CloudTrail | 全リージョン対応・CloudWatch Logsへのストリーミング |
 | CloudWatch Logs | ログ保持90日 |
 | CloudWatch Alarm | 3種のセキュリティアラート |
@@ -148,6 +153,10 @@ terraform-study/
 - ECSタスクへのパブリックIP割り当てなし → ALB経由のアクセスのみに限定
 - セキュリティグループ → ALBのSGからのHTTPのみ許可
 - SSM Session Manager → SSHポート不要・セキュリティグループに穴を開けない
+- VPC Endpoints → NAT Gatewayを使わず、private subnetからECR pull・CloudWatch Logs送信・SSM通信のみを許可
+- IMDSv2強制 → EC2のインスタンスメタデータ取得にトークンを必須化（SSRF対策）
+- EBSボリューム暗号化 → EC2のルートボリュームを暗号化
+- ALBアクセスログ → S3に記録（暗号化・パブリックアクセスブロック・90日で自動削除）
 - CloudTrailによる操作ログ記録 → 全リージョン・全サービス対象
 - ログ改ざん検知 → enable_log_file_validation = true
 - VPC Flow Logs → ネットワークトラフィックを全て記録
