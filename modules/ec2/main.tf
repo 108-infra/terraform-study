@@ -69,15 +69,49 @@ resource "aws_security_group" "web" {
 }
 
 #--------------------------------------------------------------
+# AMI（Amazon Linux 2023 最新版を自動取得）
+#--------------------------------------------------------------
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+}
+
+#--------------------------------------------------------------
 # EC2インスタンス
 #--------------------------------------------------------------
 resource "aws_instance" "web" {
-  ami                         = "ami-0599b6e53ca798bb2"
+  ami                         = data.aws_ami.amazon_linux.id
   instance_type               = "t3.micro"
   subnet_id                   = var.subnet_id
   vpc_security_group_ids      = [aws_security_group.web.id]
   associate_public_ip_address = false
   iam_instance_profile        = aws_iam_instance_profile.web.name
+
+  user_data_replace_on_change = true
+  user_data                   = <<-EOF
+    #!/bin/bash
+    dnf install -y nginx
+    systemctl enable --now nginx
+  EOF
+
+  metadata_options {
+    http_tokens   = "required" # IMDSv2を強制
+    http_endpoint = "enabled"
+  }
+
+  root_block_device {
+    encrypted = true
+  }
 
   tags = merge(local.common_tags, {
     Name = "web-server-${var.env}"

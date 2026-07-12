@@ -28,6 +28,13 @@ resource "aws_lb" "this" {
   security_groups    = [aws_security_group.alb.id]
   subnets            = var.public_subnet_ids
 
+  access_logs {
+    bucket  = aws_s3_bucket.alb_logs.id
+    enabled = true
+  }
+
+  depends_on = [aws_s3_bucket_policy.alb_logs]
+
   tags = merge(local.common_tags, {
     Name = "${var.name}-alb-${var.env}"
   })
